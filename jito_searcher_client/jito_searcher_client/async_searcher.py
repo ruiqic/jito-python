@@ -56,15 +56,7 @@ class AsyncSearcherInterceptor(
         client_call_details,
         request,
     ):
-        await self.authenticate_if_needed()
-
-        client_call_details = self._insert_headers(
-            [("authorization", f"Bearer {self._access_token.token}")],
-            client_call_details,
-        )
-
         call = await continuation(client_call_details, request)
-
         return call
 
     async def intercept_unary_unary(
@@ -73,13 +65,6 @@ class AsyncSearcherInterceptor(
         client_call_details,
         request,
     ):
-        await self.authenticate_if_needed()
-
-        client_call_details = self._insert_headers(
-            [("authorization", f"Bearer {self._access_token.token}")],
-            client_call_details,
-        )
-
         undone_call = await continuation(client_call_details, request)
         response = await undone_call
         return response
@@ -162,19 +147,13 @@ class AsyncSearcherInterceptor(
         )
 
 
-async def get_async_searcher_client(url: str, kp: Keypair) -> SearcherServiceStub:
+async def get_async_searcher_client(url: str, _) -> SearcherServiceStub:
     """
     Returns a Searcher Service client that intercepts requests and authenticates with the block engine.
     :param url: url of the block engine without http/https
-    :param kp: keypair of the block engine
     :return: SearcherServiceStub which handles authentication on requests
     """
-    # Authenticate immediately
-    searcher_interceptor = AsyncSearcherInterceptor(url, kp)
-    await searcher_interceptor.authenticate_if_needed()
 
     credentials = ssl_channel_credentials()
-    channel = secure_channel(url, credentials, interceptors=[searcher_interceptor])
-    channel._unary_stream_interceptors.append(searcher_interceptor)
-
+    channel = secure_channel(url, credentials)
     return SearcherServiceStub(channel)
